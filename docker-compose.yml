@@ -19,7 +19,7 @@ configs:
   # Prometheus
   #
   PrometheusConfig:
-    name: PrometheusConfig-9
+    name: PrometheusConfig-13
     file: ./Configs/Prometheus/prometheus.yml
 
 #
@@ -208,6 +208,18 @@ services:
         published: 9090
         protocol: tcp
         mode: host
+
+  #
+  # VMWare Exporter
+  #
+  VMWareExporter:
+    image: pryorda/vmware_exporter
+    command: ['-c/etc/vmware/config.yml']
+    deploy:
+      replicas: 1
+    env_file: ENVs/VMWareExporter.env
+    networks:
+      - internalPrometheus
 
   #
   # Minecraft Reverse Proxy
