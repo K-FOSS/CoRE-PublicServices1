@@ -198,7 +198,7 @@ services:
         gid: '1000'
         mode: 0440
     deploy:
-      mode: global
+      replicas: 1
     volumes:
       - prometheusData:/data:rw
     networks:
@@ -207,17 +207,18 @@ services:
       - target: 9090
         published: 9090
         protocol: tcp
-        mode: host
+        mode: ingress
 
   #
   # VMWare Exporter
   #
   VMWareExporter:
     image: pryorda/vmware_exporter
-    command: ['-c/etc/vmware/config.yml']
     deploy:
       replicas: 1
     env_file: ENVs/VMWareExporter.env
+    environment:
+      VSPHERE_IGNORE_SSL: 'True'
     networks:
       - internalPrometheus
 
