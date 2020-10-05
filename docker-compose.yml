@@ -12,14 +12,14 @@ configs:
   # Minio Reverse Proxy Caddyfile
   #
   MinioWebConfig:
-    name: MinioWebConfig-1
+    name: MinioWebConfig-5
     file: ./Configs/MinioWeb/Caddyfile.json
 
   #
   # Prometheus
   #
   PrometheusConfig:
-    name: PrometheusConfig-2
+    name: PrometheusConfig-9
     file: ./Configs/Prometheus/prometheus.yml
 
 #
@@ -45,6 +45,7 @@ networks:
   # Minio intercommunication network
   #
   internalMinio:
+    driver: overlay
 
   #
   # Prometheus Network
@@ -275,10 +276,13 @@ services:
         constraints:
           - 'node.hostname==vm1'
     env_file: ENVs/Minio.env
+    environment:
+      MINIO_PROMETHEUS_AUTH_TYPE: public
     volumes:
       - minio1Data:/export
     networks:
       - internalMinio
+      - internalPrometheus
 
   Minio2:
     image: kristianfoss/programs-minio:minio-build-main-scratch
@@ -291,10 +295,13 @@ services:
         constraints:
           - 'node.hostname==vm2'
     env_file: ENVs/Minio.env
+    environment:
+      MINIO_PROMETHEUS_AUTH_TYPE: public
     volumes:
       - minio2Data:/export
     networks:
       - internalMinio
+      - internalPrometheus
 
   Minio3:
     image: kristianfoss/programs-minio:minio-build-main-scratch
@@ -307,10 +314,13 @@ services:
         constraints:
           - 'node.hostname==vm3'
     env_file: ENVs/Minio.env
+    environment:
+      MINIO_PROMETHEUS_AUTH_TYPE: public
     volumes:
       - minio3Data:/export
     networks:
       - internalMinio
+      - internalPrometheus
 
   Minio4:
     image: kristianfoss/programs-minio:minio-build-main-scratch
@@ -320,7 +330,10 @@ services:
       replicas: 1
       endpoint_mode: dnsrr
     env_file: ENVs/Minio.env
+    environment:
+      MINIO_PROMETHEUS_AUTH_TYPE: public
     volumes:
       - minio4Data:/export
     networks:
       - internalMinio
+      - internalPrometheus
