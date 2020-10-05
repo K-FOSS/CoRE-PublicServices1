@@ -19,7 +19,7 @@ configs:
   # Prometheus
   #
   PrometheusConfig:
-    name: PrometheusConfig-13
+    name: PrometheusConfig-19
     file: ./Configs/Prometheus/prometheus.yml
 
 #
@@ -110,7 +110,7 @@ services:
         mode: 0440
     deploy:
       mode: replicated
-      replicas: 6
+      replicas: 3
       update_config:
         parallelism: 1
         delay: 10s
@@ -229,7 +229,7 @@ services:
     image: kristianfoss/programs-mc-router:golangmc-build-main-scratch
     command: --mapping=amc.kristianjones.dev=159.203.39.63:25565,mc.kristianjones.dev=159.203.39.63:25565,emmc1.kristianjones.dev=emmc1-kjdev:25565
     deploy:
-      replicas: 6
+      replicas: 3
       update_config:
         parallelism: 1
         delay: 10s
@@ -265,7 +265,7 @@ services:
         mode: 0440
     deploy:
       mode: replicated
-      replicas: 6
+      replicas: 3
       update_config:
         parallelism: 1
         delay: 10s
@@ -279,7 +279,7 @@ services:
         mode: ingress
 
   Minio1:
-    image: kristianfoss/programs-minio:minio-build-main-scratch
+    image: kristianfoss/programs-minio:minio-build-stable-scratch
     command: ['server', 'http://Minio{1...4}/export']
     deploy:
       mode: replicated
@@ -298,7 +298,7 @@ services:
       - internalPrometheus
 
   Minio2:
-    image: kristianfoss/programs-minio:minio-build-main-scratch
+    image: kristianfoss/programs-minio:minio-build-stable-scratch
     command: ['server', 'http://Minio{1...4}/export']
     deploy:
       mode: replicated
@@ -317,7 +317,7 @@ services:
       - internalPrometheus
 
   Minio3:
-    image: kristianfoss/programs-minio:minio-build-main-scratch
+    image: kristianfoss/programs-minio:minio-build-stable-scratch
     command: ['server', 'http://Minio{1...4}/export']
     deploy:
       mode: replicated
@@ -336,7 +336,7 @@ services:
       - internalPrometheus
 
   Minio4:
-    image: kristianfoss/programs-minio:minio-build-main-scratch
+    image: kristianfoss/programs-minio:minio-build-stable-scratch
     command: ['server', 'http://Minio{1...4}/export']
     deploy:
       mode: replicated
