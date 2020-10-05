@@ -1,0 +1,61 @@
+{
+  "admin": {
+    "config": {
+      "persist": false
+    }
+  },
+  "apps": {
+    "http": {
+      "http_port": 8080,
+      "https_port": 8443,
+      "servers": {
+        "srv0": {
+          "listen": [
+            ":8080"
+          ],
+          "logs": {},
+          "routes": [
+            {
+              "match": [
+                {
+                  "host": [
+                    "ping.example.org"
+                  ],
+                  "path": [
+                    "/ping"
+                  ]
+                }
+              ],
+              "handle": [
+                {
+                  "handler": "static_response",
+                  "status_code": "200",
+                  "body": "OK"
+                }
+              ]
+            },
+            {
+              "match": [
+                {
+                  "host": [
+                    "emmc.kristianjones.dev"
+                  ]
+                }
+              ],
+              "handle": [
+                {
+                  "handler": "reverse_proxy",
+                  "upstreams": [
+                    {
+                      "dial": "emmc1-kjdev:8123"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

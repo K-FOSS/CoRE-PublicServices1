@@ -1,0 +1,326 @@
+version: '3.8'
+
+#
+# Docker Configs
+#
+configs:
+  WebConfig:
+    name: WebConfig-7
+    file: ./Configs/Web/Caddyfile.json
+
+  #
+  # Minio Reverse Proxy Caddyfile
+  #
+  MinioWebConfig:
+    name: MinioWebConfig-1
+    file: ./Configs/MinioWeb/Caddyfile.json
+
+  #
+  # Prometheus
+  #
+  PrometheusConfig:
+    name: PrometheusConfig-2
+    file: ./Configs/Prometheus/prometheus.yml
+
+#
+# Docker Networks
+#
+# https://docs.docker.com/compose/compose-file/#network-configuration-reference
+#
+
+networks:
+  #
+  # Minecraft Network
+  #
+  minecraftNetwork:
+    driver: overlay
+
+  #
+  # Public Web
+  #
+  publicWeb:
+    driver: overlay
+
+  #
+  # Minio intercommunication network
+  #
+  internalMinio:
+
+  #
+  # Prometheus Network
+  #
+  internalPrometheus:
+
+#
+# Docker Volumes
+#
+volumes:
+  ## Ethan Modded MineCraft Data Volume
+  EMMC1Data:
+    name: emmc1datanew
+    external: true
+
+  EMMC1World:
+    name: emmc1world
+    external: true
+
+  #
+  # Minio Data Volumes
+  #
+
+  minio1Data:
+    name: minio1Data
+    external: true
+
+  minio2Data:
+    name: minio2Data
+    external: true
+
+  minio3Data:
+    name: minio3Data
+    external: true
+
+  minio4Data:
+    name: minio4Data
+    external: true
+
+  #
+  # Prometheus
+  #
+  prometheusData:
+    name: prometheusdata
+    external: true
+
+#
+# KJDev1 Public Services Docker Swarm
+#
+services:
+  #
+  # Primary Reverse Proxy
+  #
+  Web:
+    image: kristianfoss/programs-caddy:caddy-main-scratch
+    command: ['run', '--config', '/etc/caddy/Caddyfile.json']
+    configs:
+      - source: WebConfig
+        target: /etc/caddy/Caddyfile.json
+        uid: '1000'
+        gid: '1000'
+        mode: 0440
+    deploy:
+      mode: replicated
+      replicas: 6
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+    networks:
+      - publicWeb
+    ports:
+      - target: 8080
+        published: 80
+        protocol: tcp
+        mode: ingress
+
+  #
+  # Ethan's Modded Minecraft Server #1 (EMMC1)
+  #
+  # Modded MC Server for Ethan
+  #
+  emmc1-kjdev:
+    image: itzg/minecraft-server
+    deploy:
+      replicas: 1
+      resources:
+        reservations:
+          cpus: '1'
+          memory: 6G
+      restart_policy:
+        condition: any
+        delay: 60s
+        max_attempts: 5
+        window: 20m
+    volumes:
+      - EMMC1Data:/data
+      - EMMC1World:/data/world
+    networks:
+      - minecraftNetwork
+      - publicWeb
+    environment:
+      EULA: 'TRUE'
+      OVERRIDE_SERVER_PROPERTIES: 'false'
+      RCON_PASSWORD: password
+      SPAWN_PROTECTION: 0
+      OPS: KristianFJones
+      JVM_DD_OPTS: fml.queryResult:confirm
+      TZ: America/Winnipeg
+      VERSION: 1.12.2
+      TYPE: forge
+      MEMORY: 16G
+      USE_AIKAR_FLAGS: 'true'
+      USE_LARGE_PAGES: 'true'
+    healthcheck:
+      test:
+        - CMD
+        - /health.sh
+      start_period: 10m
+
+  emmc1Exporter:
+    image: joshi425/minecraft_exporter
+    deploy:
+      replicas: 1
+    environment:
+      RCON_HOST: emmc1-kjdev
+      RCON_PORT: 25575
+      RCON_PASSWORD: password
+      FORGE_SERVER: 'True'
+    volumes:
+      - EMMC1World:/world:ro
+    networks:
+      - minecraftNetwork
+      - internalPrometheus
+
+  #
+  # Prometheus
+  #
+  Prometheus:
+    image: kristianfoss/programs-prometheus:prometheus-server-main-scratch
+    command:
+      [
+        '--storage.tsdb.path=/data',
+        '--config.file=/etc/prometheus/prometheus.yml',
+      ]
+    configs:
+      - source: PrometheusConfig
+        target: /etc/prometheus/prometheus.yml
+        uid: '1000'
+        gid: '1000'
+        mode: 0440
+    deploy:
+      mode: global
+    volumes:
+      - prometheusData:/data:rw
+    networks:
+      - internalPrometheus
+    ports:
+      - target: 9090
+        published: 9090
+        protocol: tcp
+        mode: host
+
+  #
+  # Minecraft Reverse Proxy
+  #
+  mcrouter:
+    image: kristianfoss/programs-mc-router:golangmc-build-main-scratch
+    command: --mapping=amc.kristianjones.dev=159.203.39.63:25565,mc.kristianjones.dev=159.203.39.63:25565,emmc1.kristianjones.dev=emmc1-kjdev:25565
+    deploy:
+      replicas: 6
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+    environment:
+      CONNECTION_RATE_LIMIT: 1000
+    ports:
+      - target: 25565
+        published: 25565
+        protocol: tcp
+        mode: ingress
+      - target: 25565
+        published: 25565
+        protocol: udp
+        mode: ingress
+    networks:
+      - minecraftNetwork
+
+  #
+  # Minio
+  #
+  # Shared storage between Nodes
+  #
+
+  MinioWeb:
+    image: kristianfoss/programs-caddy:caddy-main-scratch
+    command: ['run', '--config', '/etc/caddy/Caddyfile.json']
+    configs:
+      - source: MinioWebConfig
+        target: /etc/caddy/Caddyfile.json
+        uid: '1000'
+        gid: '1000'
+        mode: 0440
+    deploy:
+      mode: replicated
+      replicas: 6
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+    networks:
+      - internalMinio
+    ports:
+      - target: 8080
+        published: 8080
+        protocol: tcp
+        mode: ingress
+
+  Minio1:
+    image: kristianfoss/programs-minio:minio-build-main-scratch
+    command: ['server', 'http://Minio{1...4}/export']
+    deploy:
+      mode: replicated
+      replicas: 1
+      endpoint_mode: dnsrr
+      placement:
+        constraints:
+          - 'node.hostname==vm1'
+    env_file: ENVs/Minio.env
+    volumes:
+      - minio1Data:/export
+    networks:
+      - internalMinio
+
+  Minio2:
+    image: kristianfoss/programs-minio:minio-build-main-scratch
+    command: ['server', 'http://Minio{1...4}/export']
+    deploy:
+      mode: replicated
+      replicas: 1
+      endpoint_mode: dnsrr
+      placement:
+        constraints:
+          - 'node.hostname==vm2'
+    env_file: ENVs/Minio.env
+    volumes:
+      - minio2Data:/export
+    networks:
+      - internalMinio
+
+  Minio3:
+    image: kristianfoss/programs-minio:minio-build-main-scratch
+    command: ['server', 'http://Minio{1...4}/export']
+    deploy:
+      mode: replicated
+      replicas: 1
+      endpoint_mode: dnsrr
+      placement:
+        constraints:
+          - 'node.hostname==vm3'
+    env_file: ENVs/Minio.env
+    volumes:
+      - minio3Data:/export
+    networks:
+      - internalMinio
+
+  Minio4:
+    image: kristianfoss/programs-minio:minio-build-main-scratch
+    command: ['server', 'http://Minio{1...4}/export']
+    deploy:
+      mode: replicated
+      replicas: 1
+      endpoint_mode: dnsrr
+    env_file: ENVs/Minio.env
+    volumes:
+      - minio4Data:/export
+    networks:
+      - internalMinio
